@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Tanks Arena – 30 Player HTML5</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -345,46 +346,111 @@
     .mobile-controls {
       display: none;
       position: absolute;
-      bottom: 10px;
-      left: 10px;
-      right: 10px;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      top: 0;
+      pointer-events: none;
       z-index: 10;
-      pointer-events: auto;
     }
 
-    .mobile-controls .control-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-
-    .mobile-controls button {
-      width: 60px;
-      height: 60px;
+    .joystick {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      width: 120px;
+      height: 120px;
       border-radius: 50%;
+      background: rgba(15, 23, 42, 0.8);
       border: 2px solid rgba(34, 197, 94, 0.7);
-      background: rgba(15, 23, 42, 0.9);
-      color: var(--text);
-      font-size: 20px;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .joystick-handle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(34, 197, 94, 0.9);
+      position: absolute;
+      transition: none;
+    }
+
+    .fire-btn {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 2px solid rgba(239, 68, 68, 1);
+      background: linear-gradient(to right, #ef4444, #dc2626);
+      color: white;
+      font-size: 24px;
       font-weight: bold;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      pointer-events: auto;
       transition: all 0.1s;
     }
 
-    .mobile-controls button:active {
-      background: rgba(34, 197, 94, 0.9);
+    .fire-btn:active {
       transform: scale(0.95);
     }
 
-    .mobile-controls .fire-btn {
-      width: 80px;
-      height: 80px;
-      font-size: 24px;
-      background: linear-gradient(to right, #ef4444, #dc2626);
-      border-color: rgba(239, 68, 68, 1);
+    .modal {
+      display: flex;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: var(--panel);
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .modal-content h2 {
+      margin-bottom: 10px;
+    }
+
+    .modal-content p {
+      margin-bottom: 20px;
+      color: var(--muted);
+    }
+
+    .modal-content label {
+      display: block;
+      margin: 10px 0 5px;
+      text-align: left;
+    }
+
+    .modal-content input, .modal-content select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      background: var(--bg);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 4px;
+      color: var(--text);
+    }
+
+    .modal-content button {
+      margin-top: 20px;
     }
 
     @media (max-width: 800px) {
@@ -397,11 +463,14 @@
       .sidebar {
         display: none;
       }
+      .mobile-controls {
+        display: block;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="frame">
+  <div class="frame" id="gameFrame" style="display: none;">
     <header class="header">
       <div class="title">
         <div class="title-icon">🛡️</div>
@@ -494,20 +563,16 @@
             <li>Fire: <strong>Left click</strong> or tap fire button</li>
             <li>Respawn: auto after death</li>
           </ul>
+          <button id="muteBtn" class="btn">🔊 Mute Sound</button>
         </section>
       </aside>
     </div>
 
     <div class="mobile-controls">
-      <div class="control-row">
-        <button id="btnUp">↑</button>
-        <button id="btnLeft">←</button>
-        <button id="btnRight">→</button>
+      <div id="joystick" class="joystick">
+        <div id="joystickHandle" class="joystick-handle"></div>
       </div>
-      <div class="control-row">
-        <button id="btnDown">↓</button>
-        <button id="btnFire" class="fire-btn">🔥</button>
-      </div>
+      <button id="btnFire" class="fire-btn">🔥</button>
     </div>
 
     <footer class="footer">
@@ -516,6 +581,40 @@
     </footer>
 
     <div class="overlay" id="overlayRoot" style="display:none;"></div>
+  </div>
+
+  <!-- Lobby Modal -->
+  <div id="lobbyModal" class="modal">
+    <div class="modal-content">
+      <h2>Lobby & Settings</h2>
+      <p>Join the arena, tweak options, and connect to your Remix/Farcade backend.</p>
+      
+      <label for="playerName">Player name</label>
+      <input id="playerName" type="text" value="Tank_294" />
+      
+      <label for="tankColor">Tank color</label>
+      <select id="tankColor">
+        <option value="red">Red</option>
+        <option value="blue">Blue</option>
+        <option value="green">Green</option>
+        <option value="yellow">Yellow</option>
+        <option value="purple">Purple</option>
+        <option value="orange">Orange</option>
+      </select>
+      
+      <label for="arenaSize">Arena size</label>
+      <select id="arenaSize">
+        <option value="small">Small</option>
+        <option value="medium">Medium</option>
+        <option value="large">Large</option>
+        <option value="massive">Massive (4x screen)</option>
+      </select>
+      
+      <label><input id="musicToggle" type="checkbox" /> Music</label>
+      <label><input id="sfxToggle" type="checkbox" checked /> Sound effects</label>
+      
+      <button id="joinArenaBtn" class="btn btn-primary">▶️ Join Arena</button>
+    </div>
   </div>
 
   <!-- ==========================
@@ -527,15 +626,28 @@
 
     async function initRemixSdk() {
       try {
-        // If Farcade Remix injects a global SDK, use it
-        if (window.RemixSDK) {
-          remixSdk = window.RemixSDK;
-          if (remixSdk.actions && remixSdk.actions.ready) {
-            await remixSdk.actions.ready();
-          }
+        if (window.FarcadeSDK) {
+          remixSdk = window.FarcadeSDK;
+          const gameInfo = await remixSdk.singlePlayer.actions.ready();
+          console.log('Farcade SDK ready', gameInfo);
+
+          // Set up event listeners
+          remixSdk.on("play_again", () => {
+            // Reset and start new game
+            GAME.running = false;
+            GAME.myDeaths = 0;
+            GAME.myKills = 0;
+            // Show lobby
+            modal.style.display = 'flex';
+            gameFrame.style.display = 'none';
+          });
+
+          remixSdk.on("toggle_mute", (data) => {
+            GAME.sfxEnabled = !data.isMuted;
+          });
         }
       } catch (e) {
-        console.log('Remix SDK init failed / not present:', e);
+        console.log('Remix SDK not available or failed to init:', e);
       }
     }
 
@@ -554,28 +666,6 @@
       }
     }
 
-    function notifyJoinArena(payload) {
-      // payload: { name, color, arenaSize }
-      // TODO: send "join" event to your backend / Farcade / MiniApp
-      // Example pseudo:
-      // remixSdk?.sendEvent?.('join_arena', payload)
-      // miniAppSdk?.actions?.call?.({ type: 'join_arena', payload })
-    }
-
-    function notifyLeaveArena() {
-      // TODO: send "leave" event to backend
-    }
-
-    function notifyScoreUpdate(score) {
-      // TODO: send score to your backend (for rewards / leaderboard)
-      // Example pseudo:
-      // remixSdk?.sendEvent?.('score_update', { score })
-    }
-
-    function notifyKillEvent(killerName, victimName) {
-      // Optional: track kill feed externally
-    }
-
     // Init SDKs (non-blocking)
     initRemixSdk();
     initMiniAppSdk();
@@ -585,24 +675,30 @@
        SOUND MANAGER
        ========================== -->
   <script>
-    const MUSIC_URL      = 'https://example.com/your-tank-music.mp3';   // TODO: replace
-    const SFX_SHOT_URL   = 'https://example.com/your-shot-sfx.mp3';     // TODO: replace
-    const SFX_HIT_URL    = 'https://example.com/your-hit-sfx.mp3';      // TODO: replace
-    const SFX_SPAWN_URL  = 'https://example.com/your-spawn-sfx.mp3';    // TODO: replace
-    const SFX_CLICK_URL  = 'https://example.com/your-click-sfx.mp3';    // TODO: replace
+    const MUSIC_URL      = '';
+    const SFX_SHOT_URL   = 'https://remix.gg/blob/255c8bba-0ddf-40b8-8f9c-e56c6d97ada9/cannon-shot-aNAXELPr5z5e6Azw3nPsLEJYVScDID.mp3?MqZi';
+    const SFX_HIT_URL    = 'https://remix.gg/blob/255c8bba-0ddf-40b8-8f9c-e56c6d97ada9/080884_bullet-hit-39872-bhBuA0SCYh6iu0fKoDSwAlJidwfarP.mp3?EkXg';
+    const SFX_EXPLOSION_URL = 'https://remix.gg/blob/255c8bba-0ddf-40b8-8f9c-e56c6d97ada9/medium-explosion-40472-GG8KKJIjqqmwW0tjDvMf2dd0BCjlPR.mp3?3aY5';
+    const SFX_SPAWN_URL  = '';
+    const SFX_CLICK_URL  = '';
+    const SFX_ENEMY_SHOT = 'https://remix.gg/blob/255c8bba-0ddf-40b8-8f9c-e56c6d97ada9/cannon-shot-326182-bZsq1jNrSznP5zfBL6Gxf0uAizK3CD.mp3?NnYi';
 
     const soundState = {
       bgm: null,
       shot: null,
+      enemyShot: null,
       hit: null,
+      explosion: null,
       spawn: null,
       click: null,
       musicEnabled: true,
       sfxEnabled: true,
+      audioContext: null,
     };
 
     function initAudio() {
       try {
+        soundState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         if (MUSIC_URL) {
           soundState.bgm = new Audio(MUSIC_URL);
           soundState.bgm.loop = true;
@@ -612,9 +708,17 @@
           soundState.shot = new Audio(SFX_SHOT_URL);
           soundState.shot.volume = 0.8;
         }
+        if (SFX_ENEMY_SHOT) {
+          soundState.enemyShot = new Audio(SFX_ENEMY_SHOT);
+          soundState.enemyShot.volume = 0.8;
+        }
         if (SFX_HIT_URL) {
           soundState.hit = new Audio(SFX_HIT_URL);
           soundState.hit.volume = 0.8;
+        }
+        if (SFX_EXPLOSION_URL) {
+          soundState.explosion = new Audio(SFX_EXPLOSION_URL);
+          soundState.explosion.volume = 0.8;
         }
         if (SFX_SPAWN_URL) {
           soundState.spawn = new Audio(SFX_SPAWN_URL);
@@ -632,6 +736,9 @@
     function playMusic() {
       if (!soundState.musicEnabled || !soundState.bgm) return;
       try {
+        if (soundState.audioContext && soundState.audioContext.state === 'suspended') {
+          soundState.audioContext.resume();
+        }
         soundState.bgm.currentTime = 0;
         soundState.bgm.play().catch(() => {});
       } catch (e) {}
@@ -646,15 +753,62 @@
 
     function playSfx(name) {
       if (!soundState.sfxEnabled) return;
-      const s = soundState[name];
-      if (!s) return;
       try {
-        s.currentTime = 0;
-        s.play().catch(() => {});
+        if (soundState.audioContext && soundState.audioContext.state === 'suspended') {
+          soundState.audioContext.resume();
+        }
       } catch (e) {}
+      const s = soundState[name];
+      if (s) {
+        try {
+          s.currentTime = 0;
+          s.play().catch(() => {});
+        } catch (e) {}
+      } else {
+        // Fallback beeps
+        if (name === 'shot') playBeep(800, 0.1);
+        else if (name === 'enemyShot') playBeep(700, 0.1);
+        else if (name === 'hit') playBeep(200, 0.2);
+        else if (name === 'explosion') playBeep(150, 0.5);
+        else if (name === 'spawn') playBeep(600, 0.15);
+        else if (name === 'click') playBeep(1000, 0.05);
+      }
+    }
+
+    function playBeep(frequency, duration) {
+      try {
+        if (!soundState.audioContext) return;
+        const oscillator = soundState.audioContext.createOscillator();
+        const gainNode = soundState.audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(soundState.audioContext.destination);
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sawtooth';
+        gainNode.gain.setValueAtTime(0.5, soundState.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, soundState.audioContext.currentTime + duration);
+        oscillator.start(soundState.audioContext.currentTime);
+        oscillator.stop(soundState.audioContext.currentTime + duration);
+      } catch (e) {
+        console.log('Beep failed:', e);
+      }
     }
 
     initAudio();
+
+    function unlockAudio() {
+      if (soundState.audioContext && soundState.audioContext.state === 'suspended') {
+        soundState.audioContext.resume();
+      }
+    }
+
+    // Visibility change handler
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopMusic();
+      } else if (GAME.running && soundState.musicEnabled) {
+        playMusic();
+      }
+    });
   </script>
 
   <!-- ==========================
@@ -694,9 +848,46 @@
       obstacles: [],
       powerups: [],
       tankImage: null,
-      houseImages: [],
       explosions: [],
     };
+
+    // SDK notify functions
+    function notifyJoinArena(payload) {
+      // payload: { name, color, arenaSize }
+      // Send "join" event to Farcade / MiniApp
+      remixSdk?.actions?.sendEvent?.('join_arena', payload);
+      miniAppSdk?.actions?.call?.({ type: 'join_arena', payload });
+    }
+
+    function notifyLeaveArena() {
+      // Send "leave" event to backend
+      remixSdk?.actions?.sendEvent?.('leave_arena');
+      miniAppSdk?.actions?.call?.({ type: 'leave_arena' });
+    }
+
+    function notifyScoreUpdate(score) {
+      // Send score to backend (for rewards / leaderboard)
+      remixSdk?.actions?.sendEvent?.('score_update', { score });
+      miniAppSdk?.actions?.call?.({ type: 'score_update', payload: { score } });
+    }
+
+    function notifyKillEvent(killerName, victimName) {
+      // Track kill feed externally
+      remixSdk?.actions?.sendEvent?.('kill_event', { killer: killerName, victim: victimName });
+      miniAppSdk?.actions?.call?.({ type: 'kill_event', payload: { killer: killerName, victim: victimName } });
+    }
+
+    function notifyGameOver(deaths) {
+      // Notify game over
+      remixSdk?.singlePlayer?.actions?.gameOver?.({ score: GAME.myKills });
+      miniAppSdk?.actions?.call?.({ type: 'game_over', payload: { deaths, kills: GAME.myKills } });
+    }
+
+    function notifyGameStart() {
+      // Notify game start
+      remixSdk?.actions?.sendEvent?.('game_start');
+      miniAppSdk?.actions?.call?.({ type: 'game_start' });
+    }
 
     const POWERUP_TYPES = [
       'Speed Boost',
@@ -711,15 +902,7 @@
       'Invisibility'
     ];
 
-    const HOUSE_IMAGE_URLS = [
-      'https://remix.gg/blob/255c8bba-0ddf-40b8-8f9c-e56c6d97ada9/favpng_4e506c2bef28ef57dc852ba3df4ae736-6UOd53lD2HxZ5oMXYiLXSHlfoJHICQ.webp',
-      'https://example.com/house2.png',
-      'https://example.com/house3.png',
-      'https://example.com/house4.png',
-      'https://example.com/house5.png'
-    ];
-
-    const TANK_IMAGE_URL = 'https://remix.gg/blob/255c8bba-0ddf-40b8-8f9c-e56c6d97ada9/KV-2_preview-lMdgp0t7ACNUguhBQddJOR2L4VxCF1.webp?RF7A'; // TODO: replace with actual tank image URL
+    const TANK_IMAGE_URL = 'https://remix.gg/blob/255c8bba-0ddf-40b8-8f9c-e56c6d97ada9/KV-2_preview-lMdgp0t7ACNUguhBQddJOR2L4VxCF1.webp?RF7A';
 
     const botNames = [
       'Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Avery', 'Blake', 'Cameron', 'Dakota',
@@ -817,7 +1000,7 @@
             const y = row * cellH + Math.random() * (cellH * 0.6);
             const w = 50 + Math.random() * 100;
             const h = 50 + Math.random() * 100;
-            GAME.obstacles.push({x, y, w, h, type: Math.floor(Math.random() * 5), hasChimney: Math.random() < 0.7});
+            GAME.obstacles.push({x, y, w, h});
           }
         }
       }
@@ -864,6 +1047,33 @@
       document.getElementById('overlayJoinBtn').onclick = () => {
         overlayRoot.style.display = 'none';
         joinButton.click();
+      };
+    }
+
+    function showGameOver() {
+      overlayRoot.innerHTML = `
+        <div class="overlay-panel">
+          <h1>Game Over</h1>
+          <p>You died 20 times. Better luck next time!</p>
+          <div class="overlay-buttons">
+            <button class="btn btn-primary" id="gameOverRestartBtn">🔄 Play Again</button>
+          </div>
+        </div>
+      `;
+      overlayRoot.style.display = 'flex';
+      document.getElementById('gameOverRestartBtn').onclick = () => {
+        overlayRoot.style.display = 'none';
+        // Reset deaths
+        GAME.myDeaths = 0;
+        // Leave arena
+        if (GAME.playerId) {
+          delete GAME.players[GAME.playerId];
+          GAME.playerId = null;
+          statusLabel.textContent = 'Status: idle';
+          NetworkLayer.disconnect();
+        }
+        // Show start overlay
+        showStartOverlay();
       };
     }
 
@@ -933,6 +1143,8 @@
 
       const me = createPlayer(id, name, color, false);
       GAME.players[id] = me;
+
+      notifyGameStart();
 
       // Fill with bots to reach up to 30 players
       GAME.botCount = Math.min(29, GAME.maxPlayers - 1);
@@ -1058,7 +1270,7 @@
       });
 
       // Car-like controls: A/D to turn, W/S to accelerate
-      const turnSpeed = 3; // radians per second
+      const turnSpeed = 4; // radians per second
       const accelRate = 400; // pixels per second squared
       const friction = 0.92; // per frame
 
@@ -1116,7 +1328,8 @@
           } else {
             spawnBullet(p.id, p.x + Math.cos(p.angle)*p.radius, p.y + Math.sin(p.angle)*p.radius, p.angle, 30 * effects.damage, effects.bigBullet, effects.homing);
           }
-          p.fireCooldown = 0.25 * effects.fireRate;
+          playSfx('shot');
+          p.fireCooldown = 0.5 * effects.fireRate;
         }
       }
     }
@@ -1172,6 +1385,10 @@
       p.fireCooldown = (p.fireCooldown || 0) - dt;
       if (p.fire && p.fireCooldown <= 0) {
         spawnBullet(p.id, p.x + Math.cos(p.angle)*p.radius, p.y + Math.sin(p.angle)*p.radius, p.angle, 30, false, false);
+        // Play sound only if enemy is visible on screen
+        if (p.x >= GAME.camX && p.x <= GAME.camX + canvas.width && p.y >= GAME.camY && p.y <= GAME.camY + canvas.height) {
+          playSfx('enemyShot');
+        }
         p.fireCooldown = 1.0 + Math.random()*1.0;
       }
     }
@@ -1240,7 +1457,7 @@
             const hasShield = p.powerups.some(pu => pu.type === 3 && pu.endTime > performance.now());
             if (hasShield) dmg *= 0.5;
             p.hp -= dmg;
-            playSfx('hit');
+            if (b.ownerId === GAME.playerId) playSfx('hit');
             toRemove.push(index);
 
             if (p.hp <= 0) {
@@ -1253,7 +1470,7 @@
                 alpha: 1,
                 startTime: performance.now()
               });
-              playSfx('hit'); // Explosion sound
+              if (p.id === GAME.playerId) playSfx('explosion'); // Explosion sound only for player
               handleKill(b.ownerId, p.id);
             }
             break;
@@ -1290,6 +1507,10 @@
       if (victimId === GAME.playerId) {
         GAME.myDeaths += 1;
         deathsLabel.textContent = GAME.myDeaths.toString();
+        if (GAME.myDeaths >= 1) {
+          notifyGameOver(GAME.myDeaths);
+          GAME.running = false;
+        }
       }
 
       notifyKillEvent(killer?.name || 'Unknown', victim.name);
@@ -1370,64 +1591,12 @@
       }
 
       // Draw obstacles
+      ctx.fillStyle = 'rgba(100, 100, 100, 0.9)';
+      ctx.strokeStyle = 'rgba(50, 50, 50, 1)';
+      ctx.lineWidth = 2;
       for (const obs of GAME.obstacles) {
-        const img = GAME.houseImages[obs.type];
-        if (img && img.complete) {
-          ctx.drawImage(img, obs.x, obs.y, obs.w, obs.h);
-        } else {
-          // Fallback: isometric house
-          const centerX = obs.x + obs.w / 2;
-          const centerY = obs.y + obs.h / 2;
-          const halfW = obs.w / 2;
-          const halfH = obs.h / 2;
-
-          ctx.save();
-          ctx.translate(centerX, centerY);
-
-          // Base (diamond)
-          ctx.beginPath();
-          ctx.moveTo(0, -halfH);
-          ctx.lineTo(halfW, 0);
-          ctx.lineTo(0, halfH);
-          ctx.lineTo(-halfW, 0);
-          ctx.closePath();
-          ctx.fillStyle = 'rgba(80, 60, 40, 0.9)';
-          ctx.strokeStyle = 'rgba(50, 30, 20, 1)';
-          ctx.lineWidth = 2;
-          ctx.fill();
-          ctx.stroke();
-
-          // Roof (triangle on top)
-          ctx.beginPath();
-          ctx.moveTo(-halfW * 0.8, -halfH * 0.8);
-          ctx.lineTo(halfW * 0.8, -halfH * 0.8);
-          ctx.lineTo(0, -halfH * 1.6);
-          ctx.closePath();
-          ctx.fillStyle = 'rgba(139, 69, 19, 0.9)';
-          ctx.fill();
-          ctx.stroke();
-
-          // Door
-          ctx.fillStyle = 'rgba(60, 40, 20, 1)';
-          ctx.fillRect(-5, halfH * 0.5, 10, halfH * 0.5);
-          ctx.strokeRect(-5, halfH * 0.5, 10, halfH * 0.5);
-
-          // Windows
-          ctx.fillStyle = 'rgba(200, 220, 255, 0.8)';
-          ctx.fillRect(-halfW * 0.3, -halfH * 0.3, 8, 8);
-          ctx.strokeRect(-halfW * 0.3, -halfH * 0.3, 8, 8);
-          ctx.fillRect(halfW * 0.1, -halfH * 0.3, 8, 8);
-          ctx.strokeRect(halfW * 0.1, -halfH * 0.3, 8, 8);
-
-          // Chimney
-          if (obs.hasChimney) {
-            ctx.fillStyle = 'rgba(40, 30, 20, 1)';
-            ctx.fillRect(-2, -halfH * 1.8, 4, 10);
-            ctx.strokeRect(-2, -halfH * 1.8, 4, 10);
-          }
-
-          ctx.restore();
-        }
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
       }
 
       // Draw powerups
@@ -1551,6 +1720,25 @@
 
         ctx.restore();
 
+        // Aimer for local player
+        if (id === GAME.playerId) {
+          const aimX = p.x + Math.cos(p.angle) * 60;
+          const aimY = p.y + Math.sin(p.angle) * 60;
+          // Draw aimer circle
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(aimX, aimY, 5, 0, Math.PI * 2);
+          ctx.stroke();
+          // Draw cross
+          ctx.beginPath();
+          ctx.moveTo(aimX - 8, aimY);
+          ctx.lineTo(aimX + 8, aimY);
+          ctx.moveTo(aimX, aimY - 8);
+          ctx.lineTo(aimX, aimY + 8);
+          ctx.stroke();
+        }
+
         // Health bar
         if (p.alive) {
           const hpPct = Math.max(0, p.hp)/150;
@@ -1650,39 +1838,122 @@
     });
 
     // Mobile controls
-    const btnUp = document.getElementById('btnUp');
-    const btnDown = document.getElementById('btnDown');
-    const btnLeft = document.getElementById('btnLeft');
-    const btnRight = document.getElementById('btnRight');
+    const joystick = document.getElementById('joystick');
+    const joystickHandle = document.getElementById('joystickHandle');
     const btnFire = document.getElementById('btnFire');
+
+    let joystickActive = false;
+    let joystickCenter = { x: 0, y: 0 };
+    let joystickMaxDistance = 40;
+
+    function updateJoystick(touch) {
+      let dx = touch.clientX - joystickCenter.x;
+      let dy = touch.clientY - joystickCenter.y;
+      const distance = Math.hypot(dx, dy);
+      // Allow handle to follow finger beyond the circle
+      let clampedDx = dx;
+      let clampedDy = dy;
+      const maxHandleDistance = 80; // Allow up to 80px from center
+      if (distance > maxHandleDistance) {
+        clampedDx = (dx / distance) * maxHandleDistance;
+        clampedDy = (dy / distance) * maxHandleDistance;
+      }
+
+      joystickHandle.style.left = `${40 + clampedDx}px`;
+      joystickHandle.style.top = `${40 + clampedDy}px`;
+
+      // Set KEY_STATE for car controls, based on actual direction
+      KEY_STATE.up = dy < -5;
+      KEY_STATE.down = dy > 5;
+      KEY_STATE.left = dx < -5;
+      KEY_STATE.right = dx > 5;
+    }
+
+    joystick.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const rect = joystick.getBoundingClientRect();
+      joystickCenter.x = rect.left + rect.width / 2;
+      joystickCenter.y = rect.top + rect.height / 2;
+      joystickActive = true;
+      if (e.touches[0]) {
+        updateJoystick(e.touches[0]);
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (joystickActive && e.touches[0]) {
+        e.preventDefault();
+        updateJoystick(e.touches[0]);
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+      if (joystickActive && e.changedTouches[0] && e.changedTouches[0].target !== btnFire) {
+        e.preventDefault();
+        joystickActive = false;
+        joystickHandle.style.left = '40px';
+        joystickHandle.style.top = '40px';
+        KEY_STATE.up = false;
+        KEY_STATE.down = false;
+        KEY_STATE.left = false;
+        KEY_STATE.right = false;
+      }
+    }, { passive: false });
+
+    // Add mouse events for desktop testing
+    joystick.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const rect = joystick.getBoundingClientRect();
+      joystickCenter.x = rect.left + rect.width / 2;
+      joystickCenter.y = rect.top + rect.height / 2;
+      joystickActive = true;
+      updateJoystick(e);
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (joystickActive) {
+        e.preventDefault();
+        updateJoystick(e);
+      }
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      if (joystickActive && e.target !== btnFire) {
+        joystickActive = false;
+        joystickHandle.style.left = '40px';
+        joystickHandle.style.top = '40px';
+        KEY_STATE.up = false;
+        KEY_STATE.down = false;
+        KEY_STATE.left = false;
+        KEY_STATE.right = false;
+      }
+    });
+
+    joystick.addEventListener('mouseleave', () => {
+      joystickActive = false;
+      joystickHandle.style.left = '40px';
+      joystickHandle.style.top = '40px';
+      KEY_STATE.up = false;
+      KEY_STATE.down = false;
+      KEY_STATE.left = false;
+      KEY_STATE.right = false;
+    });
 
     function handleTouchStart(e) {
       e.preventDefault();
-      const id = e.target.id;
-      if (id === 'btnUp') KEY_STATE.up = true;
-      if (id === 'btnDown') KEY_STATE.down = true;
-      if (id === 'btnLeft') KEY_STATE.left = true;
-      if (id === 'btnRight') KEY_STATE.right = true;
-      if (id === 'btnFire') mouseDown = true;
+      mouseDown = true;
     }
 
     function handleTouchEnd(e) {
       e.preventDefault();
-      const id = e.target.id;
-      if (id === 'btnUp') KEY_STATE.up = false;
-      if (id === 'btnDown') KEY_STATE.down = false;
-      if (id === 'btnLeft') KEY_STATE.left = false;
-      if (id === 'btnRight') KEY_STATE.right = false;
-      if (id === 'btnFire') mouseDown = false;
+      mouseDown = false;
     }
 
-    [btnUp, btnDown, btnLeft, btnRight, btnFire].forEach(btn => {
-      btn.addEventListener('touchstart', handleTouchStart, { passive: false });
-      btn.addEventListener('touchend', handleTouchEnd, { passive: false });
-      btn.addEventListener('mousedown', handleTouchStart);
-      btn.addEventListener('mouseup', handleTouchEnd);
-      btn.addEventListener('mouseleave', handleTouchEnd);
-    });
+    btnFire.addEventListener('touchstart', handleTouchStart, { passive: false });
+    btnFire.addEventListener('touchend', handleTouchEnd, { passive: false });
+    btnFire.addEventListener('mousedown', handleTouchStart);
+    btnFire.addEventListener('mouseup', handleTouchEnd);
+    btnFire.addEventListener('mouseleave', handleTouchEnd);
 
     joinButton.addEventListener('click', () => {
       if (!GAME.playerId) joinArena();
@@ -1703,12 +1974,6 @@
       GAME.tankImage = new Image();
       GAME.tankImage.src = TANK_IMAGE_URL;
 
-      GAME.houseImages = HOUSE_IMAGE_URLS.map(url => {
-        const img = new Image();
-        img.src = url;
-        return img;
-      });
-
       // Add default obstacles like a city
       GAME.obstacles = [];
       const numRows = 8;
@@ -1722,7 +1987,7 @@
             const y = row * cellH + Math.random() * (cellH * 0.6);
             const w = 50 + Math.random() * 100;
             const h = 50 + Math.random() * 100;
-            GAME.obstacles.push({x, y, w, h, type: Math.floor(Math.random() * 5), hasChimney: Math.random() < 0.7});
+            GAME.obstacles.push({x, y, w, h});
           }
         }
       }
@@ -1745,6 +2010,54 @@
       GAME.lastTime = performance.now();
       requestAnimationFrame(gameLoop);
     })();
+
+    // Lobby Modal
+    const modal = document.getElementById('lobbyModal');
+    const gameFrame = document.getElementById('gameFrame');
+    modal.style.display = 'flex';
+
+    const joinArenaBtn = document.getElementById('joinArenaBtn');
+    joinArenaBtn.addEventListener('click', () => {
+      const name = document.getElementById('playerName').value;
+      const color = document.getElementById('tankColor').value;
+      const size = document.getElementById('arenaSize').value;
+      const music = document.getElementById('musicToggle').checked;
+      const sfx = document.getElementById('sfxToggle').checked;
+
+      // Map color to hex
+      const colorMap = {
+        red: '#ef4444',
+        blue: '#3b82f6',
+        green: '#22c55e',
+        yellow: '#eab308',
+        purple: '#a855f7',
+        orange: '#f97316'
+      };
+      const colorHex = colorMap[color] || '#22c55e';
+
+      // Set inputs
+      nameInput.value = name;
+      colorInput.value = colorHex;
+      arenaSizeSelect.value = size;
+
+      // Set global
+      GAME.musicEnabled = music;
+      GAME.sfxEnabled = sfx;
+
+      // Hide modal, show game
+      modal.style.display = 'none';
+      gameFrame.style.display = 'grid';
+
+      // Join
+      joinArena();
+    });
+
+    // Mute button
+    const muteBtn = document.getElementById('muteBtn');
+    muteBtn.addEventListener('click', () => {
+      GAME.sfxEnabled = !GAME.sfxEnabled;
+      muteBtn.textContent = GAME.sfxEnabled ? '🔊 Mute Sound' : '🔇 Unmute Sound';
+    });
   </script>
 </body>
 </html>
